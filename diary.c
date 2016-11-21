@@ -22,6 +22,7 @@ struct tm cal_start;
 struct tm cal_end;
 
 static const char* WEEKDAYS[] = {"Mo","Tu","We","Th","Fr","Sa","Su", NULL};
+char* diary_dir = NULL;
 
 void draw_wdays(WINDOW* head) {
     char** wd;
@@ -32,15 +33,46 @@ void draw_wdays(WINDOW* head) {
     wrefresh(head);
 }
 
+bool entry_exists(const struct tm* date) {
+    strftime(curs_date_str, sizeof curs_date_str, "%Y-%m-%d", date);
+    DIR* dirp = opendir(diary_dir);
+    struct dirent* de;
+    while (dirp) {
+        errno = 0;
+        if ((de = readdir(dirp)) != NULL) {
+            if (strcmp(de->d_name, curs_date_str) == 0) {
+                closedir(dirp);
+                return true;
+            }
+        } else {
+            if (errno == 0) {
+                closedir(dirp);
+                return false;
+            }
+            closedir(dirp);
+            return false;
+        }
+    }
+
+    return false;
+}
+
 void draw_calendar(WINDOW* number_pad, WINDOW* month_pad) {
     struct tm i = cal_start;
     char month[10];
 
     while (timelocal(&i) <= timelocal(&cal_end)) {
         getyx(number_pad, cy, cx);
+
+        // Highlight already existing entries
+        if (entry_exists(&i))
+            wattron(number_pad, A_UNDERLINE);
+
         mvwprintw(number_pad, cy, cx, "%2i", i.tm_mday);
+        wattroff(number_pad, A_UNDERLINE);
         waddch(number_pad, ' ');
 
+        // Write month
         if (i.tm_mday == 1) {
             strftime(month, sizeof month, "%b", &i);
             getyx(number_pad, cy, cx);
@@ -119,11 +151,9 @@ bool go_to(WINDOW* calendar, WINDOW* month_sidebar, time_t date, int* cur_pad_po
     int diff_weeks = diff_days / 7;
     int diff_wdays = diff_days % 7;
 
-    localtime_r(&date, &curs_date);
-
     getyx(calendar, cy, cx);
-    mvwchgat(calendar, cy        , 0             , -1, A_NORMAL,   0, NULL);
-    mvwchgat(calendar, diff_weeks, diff_wdays * 3,  2, A_STANDOUT, 0, NULL);
+    mvwchgat(calendar, cy, cx, 2, entry_exists(&curs_date) ? A_UNDERLINE : A_NORMAL, 0, NULL);
+    mvwchgat(calendar, diff_weeks, diff_wdays * 3, 2, A_STANDOUT, 0, NULL);
 
     if (diff_weeks < *cur_pad_pos)
         *cur_pad_pos = diff_weeks;
@@ -132,6 +162,7 @@ bool go_to(WINDOW* calendar, WINDOW* month_sidebar, time_t date, int* cur_pad_po
     prefresh(month_sidebar, *cur_pad_pos, 0, 1,           0, LINES - 1, ASIDE_WIDTH);
     prefresh(calendar,      *cur_pad_pos, 0, 1, ASIDE_WIDTH, LINES - 1, ASIDE_WIDTH + CAL_WIDTH);
 
+    localtime_r(&date, &curs_date);
     return true;
 }
 
@@ -164,7 +195,6 @@ void setup_cal_timeframe() {
 int main(int argc, char** argv) {
     // Get the diary directory via environment variable or argument
     // If both are given, the argument takes precedence
-    char* diary_dir = NULL;
     if (argc < 2) {
         diary_dir = getenv("DIARY_DIR");
         if (diary_dir == NULL) {
@@ -177,10 +207,10 @@ int main(int argc, char** argv) {
     }
 
     // Check if that directory exists
-    DIR* diary_dir_ptr = opendir(diary_dir);
-    if (diary_dir_ptr) {
+    DIR* dirp = opendir(diary_dir);
+    if (dirp) {
         // Directory exists, continue
-        closedir(diary_dir_ptr);
+        closedir(dirp);
     } else if (errno = ENOENT) {
         fprintf(stderr, "The directory '%s' does not exist\n", diary_dir);
         return 2;
@@ -188,6 +218,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "The directory '%s' could not be opened\n", diary_dir);
         return 1;
     }
+
 
     setup_cal_timeframe();
 
