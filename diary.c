@@ -46,35 +46,40 @@ void draw_calendar(WINDOW* number_pad, WINDOW* month_pad, char* diary_dir) {
     char month[10];
 
     while (mktime(&i) <= mktime(&cal_end)) {
+        //
+        // Day
+        //
+        getyx(number_pad, cy, cx);
+        // Determine if the date need extra attributes
         bool is_today = ((cur_date.tm_year == i.tm_year) && (cur_date.tm_yday == i.tm_yday));
         bool has_entry = date_has_entry(diary_dir, &i);
-        getyx(number_pad, cy, cx);
-        if (is_today) {
-            wattron(number_pad, A_UNDERLINE);
-        }
-        if (has_entry) {
-            wattron(number_pad, A_BOLD);
-        }
+        // Apply the attributes
+        if (is_today) { wattron(number_pad, A_UNDERLINE); }
+        if (has_entry) { wattron(number_pad, A_BOLD); }
+        // Write the date
         mvwprintw(number_pad, cy, cx, "%2i", i.tm_mday);
-        if (is_today) {
-            wattroff(number_pad, A_UNDERLINE);
-        }
-        if (has_entry) {
-            wattroff(number_pad, A_BOLD);
-        }
+        // Remove the added atributes
+        if (is_today) { wattroff(number_pad, A_UNDERLINE); }
+        if (has_entry) { wattroff(number_pad, A_BOLD); }
+        // Add pading
         waddch(number_pad, ' ');
 
+        //
+        // Month
+        //
         if (i.tm_mday == 1) {
-            bool is_month = ((cur_date.tm_year == i.tm_year) && (cur_date.tm_mon == i.tm_mon));
+            // Get the month string
             strftime(month, sizeof month, "%b", &i);
             getyx(number_pad, cy, cx);
-            if (is_month) {
-                wattron(month_pad, A_UNDERLINE);
-            }
+
+            // Determine if the date need extra attributes
+            bool is_month = ((cur_date.tm_year == i.tm_year) && (cur_date.tm_mon == i.tm_mon));
+            // Apply the attributes
+            if (is_month) { wattron(month_pad, A_UNDERLINE); }
+            // Write the month
             mvwprintw(month_pad, cy, 0, "%s", month);
-            if (is_month) {
-                wattroff(month_pad, A_UNDERLINE);
-            }
+            // Remove the added atributes
+            if (is_month) { wattroff(month_pad, A_UNDERLINE); }
         }
 
         i.tm_mday++;
