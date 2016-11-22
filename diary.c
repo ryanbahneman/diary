@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
     raw();
     curs_set(0);
 
-    WINDOW* date_header = newwin(1, 10, 0, ASIDE_WIDTH + CAL_WIDTH);
+    WINDOW* date_header = newwin(1, 11, 0, ASIDE_WIDTH + CAL_WIDTH);
     wattron(date_header, A_BOLD);
     update_date(date_header);
     WINDOW* wdays_header = newwin(1, 3 * 7, 0, ASIDE_WIDTH);
@@ -211,6 +211,7 @@ int main(int argc, char** argv) {
     // init the current pad possition at the very end,
     // such that the cursor is displayed top of screen
     int pad_pos = 9999999;
+    int syear = 0, smonth = 0, sday = 0;
 
     wmove(cal, 0, 0);
     getyx(cal, cy, cx);
@@ -266,9 +267,20 @@ int main(int argc, char** argv) {
                 ret = go_to(cal, aside, mktime(&new_date), &pad_pos);
                 break;
 
+            // Search
+            case 's':
+                wclear(date_header);
+                curs_set(2);
+                if (wscanw(date_header, "%4i-%2i-%2i", &syear, &smonth, &sday) == 3) {
+                    new_date.tm_year = syear;
+                    new_date.tm_mon = smonth;
+                    new_date.tm_mday = sday;
+                    ret = go_to(cal, aside, mktime(&new_date), &pad_pos);
+                }
+                curs_set(0);
+                break;
             // Today shortcut
             case 't':
-                new_date = cur_date;
                 ret = go_to(cal, aside, raw_time, &pad_pos);
                 break;
             // Edit/create a diary entry
